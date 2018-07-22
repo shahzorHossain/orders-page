@@ -8,37 +8,42 @@
 
 import UIKit
 
-//data structures
-struct Titles {
-    let Contacts = "Contacts"
-    let TempVar = "Temp Var"
-    let ByProvince = "By Province"
-    let ByYear = "By Year"
-}
-
-
-
 class OrdersViewController: UITableViewController {
     
     //initial variables
     let titles = Titles()
     let cellId = "cellId"
-    let alaska = Province(name: "Alaska", order: "565544dh332")
+   
     
-    let orders = ["Light Bulb", "Mattress", "Glowing Lamp", "Phone", "Book"]
-    let cNames = ["Fridge", "Bed", "Fry Pan"]
-    let dNames = ["Chris", "Tom"]
-    
-    let ordersArray = [
-        ["Light Bulb", "Mattress", "Glowing Lamp", "Phone", "Book"],
-        ["Fridge", "Bed", "Fry Pan"],
-        ["Chris", "Tom"]
+    var ordersArray = [
+        Province(title: "Alaska" , orders:["Light Bulb", "Mattress", "Glowing Lamp", "Phone", "Book"]),
+        Province(title: "Ontario",orders: ["Fridge", "Bed", "Fry Pan"]),
+        Province(title: "British Columbia", orders: ["Spoons", "Napkins"])
     ]
+    
+    //making the animations for showIndex button
+    
+    @objc func handleShowIndexPath() {
+
+        var indexPathArray: [IndexPath] = []
+        
+        for section in ordersArray.indices{
+            for row in ordersArray[section].orderArray.indices{
+                let indexPath = IndexPath(row: row, section: section)
+                indexPathArray.append(indexPath)
+            }
+        }
+        
+        
+        tableView.reloadRows(at: indexPathArray, with: .left)
+    }
 
     override func viewDidLoad() {
         super.viewDidLoad()
         
         //setting up the header in the navigation bar
+        
+        navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Show By Year", style: .plain, target: self, action: #selector(handleShowIndexPath))
         navigationItem.title = titles.ByProvince
         navigationController?.navigationBar.prefersLargeTitles = true
         
@@ -57,10 +62,47 @@ class OrdersViewController: UITableViewController {
     
     //divider between every section
     override func tableView(_ tableView: UITableView, viewForHeaderInSection section: Int) -> UIView? {
-        let label = UILabel()
-        label.text = alaska.title
-        label.backgroundColor = alaska.backgroundColor
-        return label
+
+        let button = UIButton(type: .system)
+        button.setTitle(ordersArray[section].title, for: .normal)
+        
+        button.addTarget(self, action: #selector(handleExpandClose), for: .touchUpInside)
+        button.tag = section
+        return button
+        
+        
+//        let label = UILabel()
+//        label.text = alaska.title
+//        label.backgroundColor = alaska.backgroundColor
+//        return label
+    }
+    
+    //handling the close button for each header
+    @objc func handleExpandClose(button: UIButton) {
+        
+        var indexPathArray:[IndexPath] = []
+        let section = button.tag
+        
+        for row in ordersArray[section].orderArray.indices {
+            let indexPath = IndexPath(row: row, section: section)
+            
+            indexPathArray.append(indexPath)
+        }
+        
+        let isExpanded = ordersArray[section].isExpandable
+        ordersArray[section].isExpandable = !isExpanded
+        
+        if isExpanded {
+            tableView.deleteRows(at: indexPathArray, with: .fade)
+        }
+        else {
+            tableView.insertRows(at: indexPathArray, with: .fade)
+            
+        }
+    }
+    //for the divider height
+    override func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
+        return 36
     }
     
     //For the tableView rows
@@ -70,19 +112,12 @@ class OrdersViewController: UITableViewController {
          this is how we vary the number of elements in each section
          */
         
-        //bad code
         
-//        if section == 0 {
-//        return orders.count
-//        }
-//        else{
-//            return cNames.count
-//        }
+        if !ordersArray[section].isExpandable {
+            return 0
+        }
         
-        
-//      good code
-        
-        return ordersArray[section].count
+        return ordersArray[section].orderArray.count
         
         
         
@@ -94,7 +129,7 @@ class OrdersViewController: UITableViewController {
         
 //        let order = indexPath.section == 0 ? orders[indexPath.row] : cNames[indexPath.row]
         
-        let order = ordersArray[indexPath.section][indexPath.row]
+        let order = (ordersArray[indexPath.section].orderArray)[indexPath.row]
         
         cell.textLabel?.text = "\(order) Section: \(indexPath.section) Row: \(indexPath.row) "
         return cell
