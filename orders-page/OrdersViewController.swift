@@ -12,34 +12,41 @@ import Alamofire
 class OrdersViewController: UITableViewController {
     
     // initial variables
-    let titles = Titles()
+    let titles = Titles() // a struct of headings
     let cellId = "cellId"
-    var ordersArray : [Province] = []
+    var ordersArray : [Province] = [] //essentially a 2D array for provinces
+    var yearsArray: [Year] = [] // same thing, since Year has an array of orders
+    var yearFlag = true // to toggle between show by province - show by year
 
-    // making the animations for showIndex button
+    // making the animations for displaying by year - by province button
     
     @objc func handleShowIndexPath() {
 
-        var indexPathArray: [IndexPath] = []
+        yearFlag = !yearFlag
         
-        for section in ordersArray.indices {
-            for row in ordersArray[section].orderArray.indices {
-                let indexPath = IndexPath(row: row, section: section)
-                indexPathArray.append(indexPath)
-            }
+    //if it's show by year
+        if yearFlag == false {
+            navigationItem.title = titles.ByYear
+            navigationItem.rightBarButtonItem?.title = "Show By Province"
+            
+        }
+    //if it's show by province
+        else {
+            navigationItem.title = titles.ByProvince
+            navigationItem.rightBarButtonItem?.title = "Show By Year"
+            
         }
         
-        
-        tableView.reloadRows(at: indexPathArray, with: .left)
+        self.tableView.reloadData()
     }
     
     
     override func viewDidLoad() {
         super.viewDidLoad()
         
-        self.populateArray()
+        self.populateArray() //this populates both the year array, and orders array using REST API
         
-        //setting up the header in the navigation bar
+        //setting up the header in the navigation bar by default
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Show By Year", style: .plain, target: self, action: #selector(handleShowIndexPath))
         navigationItem.title = titles.ByProvince
         navigationController?.navigationBar.prefersLargeTitles = true
@@ -51,7 +58,7 @@ class OrdersViewController: UITableViewController {
       
     }
     
-    //populating the ordersArray from API
+    //populating the ordersArray and yearArray from API
     func populateArray(){
         
         Alamofire.request("https://shopicruit.myshopify.com/admin/orders.json?page=1&access_token=c32313df0d0ef512ca64d5b336a0d7c6").responseJSON { response in
@@ -60,7 +67,7 @@ class OrdersViewController: UITableViewController {
             if let data = response.result.value as? [String : Any] {
                 if let json = data["orders"] as? [[String : Any]] {
                     
-                    for orderDetails in json {
+                    for orderDetails in json { //we get the main details in orderDetails
                         
                         let province: Province = Province()
                         let order: Order = Order()
@@ -69,14 +76,14 @@ class OrdersViewController: UITableViewController {
                         if let shippingAddr = orderDetails["shipping_address"] as? NSDictionary{
                             if let orderProvince = shippingAddr["province"] as? String{
                                 
-                                
-                                // checking for duplicate province in the ordersArray
+                                //constructing the province, customer, and orders
                                 province.title = orderProvince
                                 customer.shippingAddress = orderProvince
                             }
                             
                         } else {
-                            //skip to the next iteration
+                            // there's a problem in the API where one of the orders doesn't have a shipping addr.
+                            //as a result I assumed that the order is invalid and I just skip the order
                             continue
                         }
                         
@@ -87,6 +94,7 @@ class OrdersViewController: UITableViewController {
                             }
                         }
                         
+                        //for finding the years, converting Date to String in extractDate()
                         if let id = orderDetails["id"] as? NSNumber, let date = orderDetails["created_at"] as! String?{
                             let year = self.extractDate(date: date)
                             
@@ -96,7 +104,7 @@ class OrdersViewController: UITableViewController {
                             order.date = year
                         }
                         
-                        self.handleDuplicateProvince(newProvince: province, newOrder: order)
+                        self.handleDuplicateProvinceAndYear(newProvince: province, newOrder: order)
                         
                     }
                     
@@ -106,6 +114,7 @@ class OrdersViewController: UITableViewController {
             }
             //sorting the array alphabetically
             self.ordersArray = self.ordersArray.sorted { $0.title < $1.title }
+          
             self.tableView.register(UITableViewCell.self, forCellReuseIdentifier: self.cellId)
             self.tableView.reloadData()
         }
@@ -126,16 +135,40 @@ class OrdersViewController: UITableViewController {
         return year
     }
     
-    func handleDuplicateProvince(newProvince: Province, newOrder: Order) {
+    //this is where we find duplicates, or insert new entries into the arrays
+    func handleDuplicateProvinceAndYear(newProvince: Province, newOrder: Order) {
+        
+        var duplicateYearFlag = true
+        
+        //for the yearArray
+        for index in 0..<self.yearsArray.count {
+            //if theres a duplicate, append to existing list
+            if self.yearsArray[index].year == newOrder.date{
+                
+                self.yearsArray[index].order.append(newOrder)
+                duplicateYearFlag = false
+                break
+            }
+        }
 
+        //for the orderArray
         for index in 0..<self.ordersArray.count {
             if self.ordersArray[index].title == newProvince.title {
+                
                 //add order id into the existing province
-                ordersArray[index].orderArray.append(newOrder)
+                self.ordersArray[index].orderArray.append(newOrder)
                 return
 
             }
         }
+        
+        //if there's a new item, append to list
+        if(duplicateYearFlag == true){
+            self.yearsArray.append(Year(Order: newOrder, Year: newOrder.date!))
+            
+        }
+        
+        //same for the province list
         newProvince.orderArray.append(newOrder)
         self.ordersArray.append(newProvince)
         return
@@ -146,7 +179,17 @@ class OrdersViewController: UITableViewController {
 
     //number of sections
     override func numberOfSections(in tableView: UITableView) -> Int {
-        return ordersArray.count
+        //if it's show by province
+        if yearFlag == true {
+            return ordersArray.count
+            
+        }
+            //if it's show by year
+        else {
+            return yearsArray.count
+
+        }
+        
     }
     
     //divider between every section
@@ -154,7 +197,17 @@ class OrdersViewController: UITableViewController {
 
         let button = UIButton(type: .system)
         
-        button.setTitle(ordersArray[section].title, for: .normal)
+        //if it's show by province
+        if yearFlag == true {
+            button.setTitle(ordersArray[section].title, for: .normal)
+        
+        }
+        //if it's show by year
+        else {
+            button.setTitle(yearsArray[section].year, for: .normal)
+
+        }
+        
         
         button.addTarget(self, action: #selector(handleExpandClose), for: .touchUpInside)
         button.tag = section
@@ -162,28 +215,41 @@ class OrdersViewController: UITableViewController {
         
     }
     
-    //handling the close button for each header
+    //this creates the collapsing effect for each subheading
     @objc func handleExpandClose(button: UIButton) {
         
         var indexPathArray:[IndexPath] = []
         let section = button.tag
         
-        for row in ordersArray[section].orderArray.indices {
-            let indexPath = IndexPath(row: row, section: section)
+        
+        if yearFlag == true { // show by Province
+        
+            for row in ordersArray[section].orderArray.indices {
+                let indexPath = IndexPath(row: row, section: section)
+                
+                indexPathArray.append(indexPath)
+            }
             
-            indexPathArray.append(indexPath)
-        }
-        
-        let isExpanded = ordersArray[section].isExpandable
-        ordersArray[section].isExpandable = !isExpanded
-        
-        if isExpanded {
-            tableView.deleteRows(at: indexPathArray, with: .fade)
+            let isExpanded = ordersArray[section].isExpandable
+            
+            //once collapsed, we change the isExpanded to false and vice versa
+            ordersArray[section].isExpandable = !isExpanded
+            
+            if isExpanded {
+                tableView.deleteRows(at: indexPathArray, with: .fade)
+            }
+            else {
+                tableView.insertRows(at: indexPathArray, with: .fade)
+                
+            }
+            
         }
         else {
-            tableView.insertRows(at: indexPathArray, with: .fade)
             
         }
+        
+        
+        
     }
     //for the divider height
     override func tableView(_ tableView: UITableView, heightForHeaderInSection section: Int) -> CGFloat {
@@ -203,19 +269,30 @@ class OrdersViewController: UITableViewController {
             return 0
         }
         
-        return ordersArray[section].orderArray.count
+        if yearFlag == true { // show by Province
+        
+            return ordersArray[section].orderArray.count
+       }
+        else { // show by year
+            return yearsArray[section].order.count
+        }
         
     }
     
     //labelling each cell
     override func tableView(_ tableView: UITableView, cellForRowAt indexPath: IndexPath) -> UITableViewCell {
+        
         let cell = tableView.dequeueReusableCell(withIdentifier: cellId, for: indexPath)
-        
-        
-        let order = (ordersArray[indexPath.section].orderArray)[indexPath.row]
-        
         cell.textLabel?.font = UIFont(name: "Helvetica", size: 15.0)
-      
+        var order: Order
+        
+        if yearFlag == true {// show by Province
+            order = (ordersArray[indexPath.section].orderArray)[indexPath.row]
+        
+        }
+        else { // show by Year
+            order = yearsArray[indexPath.section].order[indexPath.row]
+        }
         
         if let orderid = order.orderId as? Int64{
             if let customerid = order.customer?.id as? Int64{
