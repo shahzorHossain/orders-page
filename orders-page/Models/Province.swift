@@ -13,12 +13,12 @@ import UIKit
 class Province {
     
     var title: String
-    var orderArray: [String]
+    var orderArray: [Order]
     let backgroundColor: UIColor = UIColor.gray
     var isExpandable: Bool = true
     
-    init(title _title: String, orders _orders: [String]){
-        self.title = _title
-        self.orderArray = _orders
+    init(){
+        self.title = ""
+        self.orderArray = []
     }
 }

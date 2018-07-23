@@ -9,7 +9,6 @@
 import Foundation
 
 struct Titles {
-    let Contacts = "Contacts"
     let TempVar = "Temp Var"
     let ByProvince = "By Province"
     let ByYear = "By Year"
