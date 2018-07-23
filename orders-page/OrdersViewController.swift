@@ -68,7 +68,7 @@ class OrdersViewController: UITableViewController {
             if let data = response.result.value as? [String : Any]  {
                 if let ordersList = data["orders"] as? [[String : Any]]{
                     
-                    var province: Province
+//                    var province: Province
                     
                     
                     for orderDetails in ordersList {
