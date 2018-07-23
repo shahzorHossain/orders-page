@@ -7,6 +7,7 @@
 //
 
 import UIKit
+import Alamofire
 
 class OrdersViewController: UITableViewController {
     
@@ -42,17 +43,60 @@ class OrdersViewController: UITableViewController {
         super.viewDidLoad()
         
         //setting up the header in the navigation bar
+        populateArray()
         
         navigationItem.rightBarButtonItem = UIBarButtonItem(title: "Show By Year", style: .plain, target: self, action: #selector(handleShowIndexPath))
         navigationItem.title = titles.ByProvince
         navigationController?.navigationBar.prefersLargeTitles = true
         
         tableView.register(UITableViewCell.self, forCellReuseIdentifier: cellId)
-    }
+        
+        }
 
+    
     override func didReceiveMemoryWarning() {
         super.didReceiveMemoryWarning()
       
+    }
+    
+    //populating the ordersArray
+    func populateArray(){
+        
+        Alamofire.request("https://shopicruit.myshopify.com/admin/orders.json?page=1&access_token=c32313df0d0ef512ca64d5b336a0d7c6").responseJSON { response in
+            
+            
+            if let data = response.result.value as? [String : Any]  {
+                if let ordersList = data["orders"] as? [[String : Any]]{
+                    
+                    var province: Province
+                    
+                    
+                    for orderDetails in ordersList {
+                        
+                        if let shippingAddr = orderDetails["shipping_address"] as? NSDictionary{
+                            if let orderProvince = shippingAddr["province"] as? String{
+                                print("\(orderProvince)")
+                            }
+                        }
+                        
+                        if let orderId = orderDetails["id"] as? NSNumber{
+                            
+                            
+                            print("\(orderId)")
+                        }
+
+                    }
+                        
+                    
+//                        let provinceName: String = (orderDetails["shipping_address"])["province"]
+//                        var order = Province(title: <#T##String#>, orders: <#T##[String]#>)
+//                        self.ordersArray.append()
+//                    }
+//                    }
+                }
+            }
+        }
+        
     }
     
     //number of sections
@@ -130,6 +174,7 @@ class OrdersViewController: UITableViewController {
 //        let order = indexPath.section == 0 ? orders[indexPath.row] : cNames[indexPath.row]
         
         let order = (ordersArray[indexPath.section].orderArray)[indexPath.row]
+
         
         cell.textLabel?.text = "\(order) Section: \(indexPath.section) Row: \(indexPath.row) "
         return cell
